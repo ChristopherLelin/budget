@@ -250,7 +250,7 @@ label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px}
   </div>
 </div>
 <script>
-var API_URL = "https://script.google.com/macros/s/AKfycbyPrXX-uRsoVrxoVpRYw2QcEWowJTDLnusGURQJVty-x6yhN__iuTpjvJ_wyqreTv0T/exec";
+var API_URL = "https://budget-proxy.christy-lelin.workers.dev";
 var CATS=['Home Loan','Personal Loan','LIC','Term Insurance 1','Term Insurance 2','Medical Insurance','Internet & Phone','Fuel','Beauty','Gas','Google','OTT','Fruits','Vegetables','Fish','Mutton','Chicken','Snacks','Grocery','Milk','Offering - Others','Offering - Church Membership','Offering - FMPB','Offering - Needy People','Offering - Christmas','Tirunelveli Church','Home Maintenance','Medical Expenses','Hospital Fund','House Tax','Repairs','Restaurant','Dresses','Alan Tuition','Office Expenses','Electricity','Gift','Education','Shopping','Transport','Stationery','Bike Maintenance','A/C Maintenance','Personal Supplies','Household Items','Subscriptions/Dues','Taxes','Groww','Water','Lending','Games','Miscellaneous'];
 var MOS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var CLRS=['#1D9E75','#378ADD','#E24B4A','#EF9F27','#7F77DD','#D4537E','#639922'];
@@ -275,32 +275,39 @@ function isJunkAcc(name){if(!name)return true;var v=name.toString().toLowerCase(
 // ── JSONP API call ─────────────────────────────────────────────────────────
 var _cbIdx=0;
 function apiCall(params, onSuccess, onError) {
-  var qs = Object.keys(params).map(function(k){ return k+'='+encodeURIComponent(params[k]); }).join('&');
-  fetch(API_URL+'?'+qs)
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  }).join('&');
+  fetch(API_URL + '?' + qs)
     .then(function(r){ return r.json(); })
     .then(onSuccess)
     .catch(function(e){ onError(e.message||'Fetch failed'); });
 }
 function apiPost(body, onSuccess, onError) {
-  fetch(API_URL, { method:'POST', body:JSON.stringify(body) })
-    .then(function(r){ return r.json(); })
-    .then(function(d){ if(onSuccess) onSuccess(d); })
-    .catch(function(e){ if(onError) onError(e.message); });
+  fetch(API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){ if(onSuccess) onSuccess(d); })
+  .catch(function(e){ if(onError) onError(e.message); });
 }
 function syncAll(){
   setSt('<span class="spin"></span>Syncing...');
   setLoad('sync-btn',true);
   var msg = document.getElementById('hero-msg');
   msg.textContent = 'Connecting...';
+  msg.style.color = 'var(--tx)';
   apiCall({action:'all'}, function(data){
-    if(!data){ msg.textContent='No response'; setLoad('sync-btn',false); return; }
+    if(!data){ msg.textContent='No response from server'; setLoad('sync-btn',false); return; }
     if(!data.ok){ msg.textContent='Error: '+(data.error||'unknown'); setLoad('sync-btn',false); return; }
     processData(data);
     setLoad('sync-btn',false);
   }, function(err){
     msg.textContent = 'Failed: '+err;
     msg.style.color = '#E24B4A';
-    setSt('Sync failed');
+    setSt('Failed');
     setLoad('sync-btn',false);
   });
 }
