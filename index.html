@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v1776682404 -->
+<!DOCTYPE html><!-- v1776701206 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -68,7 +68,7 @@ label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px}
 <body>
 <div class="app">
   <div class="topbar">
-    <div><div class="tbt" id="top-title">Home Budget</div><div class="tbs" id="sync-st">v1776682404 · Not synced</div></div>
+    <div><div class="tbt" id="top-title">Home Budget</div><div class="tbs" id="sync-st">v1776701206 · Not synced</div></div>
     <button class="mbtn" onclick="openMonthPicker()" id="month-lbl">Apr 2026</button>
   </div>
   <div class="content">
@@ -449,11 +449,44 @@ function deleteAccModal(){var idx=parseInt(document.getElementById('acc-edit-idx
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function renderAccounts(){
-  var clean=S.accounts.filter(function(a){return!isJunkAcc(a.name);});S.accounts=clean;
+  var clean=S.accounts.filter(function(a){return!isJunkAcc(a.name);});
+  S.accounts=clean;
   var grid=document.getElementById('acc-grid');
   if(!clean.length){grid.innerHTML='<div class="empty-state">No accounts yet</div>';return;}
-  grid.innerHTML=clean.map(function(a,idx){var deb=S.entries.filter(function(e){return e.type==='expense'&&e.account===a.name;}).reduce(function(s,e){return s+e.amount;},0);var cred=S.entries.filter(function(e){return e.type==='transfer'&&e.to===a.name;}).reduce(function(s,e){return s+e.amount;},0);var bal=(a.openingBalance||0)-deb+cred;var isNeg=a.type==='credit'?bal>0:bal<0;return'<div class="card" style="padding:12px;cursor:pointer;margin-bottom:8px" onclick="viewAccount(''+a.name+'')"><div style="display:flex;align-items:flex-start;justify-content:space-between"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div><div style="margin-top:3px"><span class="acc-type-badge '+(TYPE_CSS[a.type]||'type-primary')+'">'+(TYPE_LABELS[a.type]||a.type)+'</span></div></div><div style="text-align:right;flex-shrink:0;padding-left:8px"><div style="font-size:18px;font-weight:600;color:'+(isNeg?'var(--d)':'var(--t)')+'">'+inr(Math.abs(bal))+'</div><button onclick="event.stopPropagation();openEditAccModal('+idx+')" style="margin-top:4px;border:none;background:var(--gl);color:var(--t2);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">Edit</button></div></div>'+(a.type==='savings'&&a.target?'<div style="font-size:11px;color:var(--t2);margin-top:6px">Target: '+inr(a.target)+'/mo'+(a.linkedCat?' · '+a.linkedCat:'')+'</div>':'')+'</div>';}).join('');
+  var html='';
+  for(var idx=0;idx<clean.length;idx++){
+    var a=clean[idx];
+    var deb=S.entries.filter(function(e){return e.type==='expense'&&e.account===a.name;}).reduce(function(s,e){return s+e.amount;},0);
+    var cred=S.entries.filter(function(e){return e.type==='transfer'&&e.to===a.name;}).reduce(function(s,e){return s+e.amount;},0);
+    var bal=(a.openingBalance||0)-deb+cred;
+    var isNeg=a.type==='credit'?bal>0:bal<0;
+    var typeClass=TYPE_CSS[a.type]||'type-primary';
+    var typeLabel=TYPE_LABELS[a.type]||a.type;
+    var balColor=isNeg?'var(--d)':'var(--t)';
+    var savingsExtra=a.type==='savings'&&a.target?'<div style="font-size:11px;color:var(--t2);margin-top:6px">Target: '+inr(a.target)+'/mo'+(a.linkedCat?' · '+a.linkedCat:'')+'</div>':'';
+    html+='<div class="card" style="padding:12px;cursor:pointer;margin-bottom:8px" data-acc="'+idx+'" data-name="'+a.name.replace(/"/g,'&quot;')+'">';
+    html+='<div style="display:flex;align-items:flex-start;justify-content:space-between">';
+    html+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>';
+    html+='<div style="margin-top:3px"><span class="acc-type-badge '+typeClass+'">'+typeLabel+'</span></div></div>';
+    html+='<div style="text-align:right;flex-shrink:0;padding-left:8px">';
+    html+='<div style="font-size:18px;font-weight:600;color:'+balColor+'">'+inr(Math.abs(bal))+'</div>';
+    html+='<button class="edit-acc-btn" data-idx="'+idx+'" style="margin-top:4px;border:none;background:var(--gl);color:var(--t2);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">Edit</button>';
+    html+='</div></div>'+savingsExtra+'</div>';
+  }
+  grid.innerHTML=html;
+  // Attach click handlers after rendering
+  grid.querySelectorAll('[data-name]').forEach(function(el){
+    el.addEventListener('click',function(ev){
+      if(ev.target.classList.contains('edit-acc-btn')){
+        ev.stopPropagation();
+        openEditAccModal(parseInt(ev.target.dataset.idx));
+      } else {
+        viewAccount(el.dataset.name);
+      }
+    });
+  });
 }
+
 var accScope='month';
 function setAccScope(sc,btn){accScope=sc;document.querySelectorAll('#screen-accounts .chip').forEach(function(c){c.classList.remove('active');});btn.classList.add('active');if(S.viewAcc)renderAccDetail(S.viewAcc);}
 function viewAccount(name){S.viewAcc=name;document.getElementById('acc-list-view').style.display='none';document.getElementById('acc-detail-view').style.display='block';document.getElementById('top-title').textContent=name;accScope='month';renderAccDetail(name);}
