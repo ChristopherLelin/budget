@@ -299,17 +299,47 @@ function apiPost(body, onSuccess, onError) {
 function syncAll(){
   setSt('<span class="spin"></span>Syncing...');
   setLoad('sync-btn',true);
-  document.getElementById('hero-msg').textContent='Connecting to Google Sheet...';
-  apiCall({action:'all'}, function(data){
-    if(!data){document.getElementById('hero-msg').textContent='No response from server';setLoad('sync-btn',false);return;}
-    if(!data.ok){document.getElementById('hero-msg').textContent='Error: '+(data.error||'Unknown');setLoad('sync-btn',false);return;}
-    processData(data);
-    setLoad('sync-btn',false);
-  }, function(err){
-    document.getElementById('hero-msg').textContent='Failed: '+err;
-    setSt('Sync failed');
-    setLoad('sync-btn',false);
-  });
+  var msg = document.getElementById('hero-msg');
+  msg.textContent='Step 1: Fetching from Apps Script...';
+  msg.style.color='var(--tx)';
+
+  var url = API_URL + '?action=ping';
+  msg.textContent='Calling: '+url.slice(0,60)+'...';
+
+  fetch(url)
+    .then(function(r){
+      msg.textContent='Got HTTP '+r.status+'. Reading response...';
+      return r.text();
+    })
+    .then(function(text){
+      msg.textContent='Response: '+text.slice(0,200);
+      try{
+        var data = JSON.parse(text);
+        if(data.ok){
+          msg.textContent='Ping OK! Now loading all data...';
+          return fetch(API_URL+'?action=all')
+            .then(function(r){ return r.json(); })
+            .then(function(all){
+              processData(all);
+              setLoad('sync-btn',false);
+            });
+        } else {
+          msg.textContent='Server error: '+(data.error||text);
+          msg.style.color='var(--d)';
+          setLoad('sync-btn',false);
+        }
+      }catch(e){
+        msg.textContent='Parse error: '+e.message+' | Raw: '+text.slice(0,300);
+        msg.style.color='var(--d)';
+        setLoad('sync-btn',false);
+      }
+    })
+    .catch(function(e){
+      msg.textContent='FETCH FAILED: '+e.name+': '+e.message;
+      msg.style.color='var(--d)';
+      setSt('Failed: '+e.message);
+      setLoad('sync-btn',false);
+    });
 }
 
 function processData(data){
