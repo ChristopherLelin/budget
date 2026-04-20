@@ -277,40 +277,22 @@ function isJunkAcc(name){if(!name)return true;var v=name.toString().toLowerCase(
 // ── JSONP API call ─────────────────────────────────────────────────────────
 var _cbIdx=0;
 function apiCall(params, onSuccess, onError) {
-  var cbName = '_cb' + (++_cbIdx);
-  var qs = Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
-  var url = API_URL + '?callback=' + cbName + '&' + qs;
-  var done = false;
-  var timeout = setTimeout(function(){
-    if(!done){ done=true; cleanup(); onError('Timed out after 15s'); }
-  }, 15000);
-  window[cbName] = function(data){
-    if(done) return; done=true;
-    clearTimeout(timeout); cleanup(); onSuccess(data);
-  };
-  function cleanup(){
-    window[cbName] = null;
-    var el = document.getElementById('_jp_'+cbName);
-    if(el && el.parentNode) el.parentNode.removeChild(el);
-  }
-  var s = document.createElement('script');
-  s.id = '_jp_' + cbName;
-  s.src = url;
-  s.onerror = function(){
-    if(!done){ done=true; clearTimeout(timeout); cleanup(); onError('Script load failed — check Apps Script URL'); }
-  };
-  document.head.appendChild(s);
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  }).join('&');
+  fetch(API_URL + '?' + qs)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ onSuccess(data); })
+    .catch(function(e){ onError(e.message); });
 }
 
 function apiPost(body, onSuccess, onError) {
-  // Apps Script POST — use no-cors mode (response will be opaque but write succeeds)
   fetch(API_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(body),
-    headers: {'Content-Type': 'text/plain'}
+    body: JSON.stringify(body)
   })
-  .then(function(){ if(onSuccess) onSuccess({ok:true}); })
+  .then(function(r){ return r.json(); })
+  .then(function(data){ if(onSuccess) onSuccess(data); })
   .catch(function(e){ if(onError) onError(e.message); });
 }
 
