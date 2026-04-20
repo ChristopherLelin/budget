@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v1776701206 -->
+<!DOCTYPE html><!-- v1776701542 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -68,7 +68,7 @@ label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px}
 <body>
 <div class="app">
   <div class="topbar">
-    <div><div class="tbt" id="top-title">Home Budget</div><div class="tbs" id="sync-st">v1776701206 · Not synced</div></div>
+    <div><div class="tbt" id="top-title">Home Budget</div><div class="tbs" id="sync-st">v1776701542 · Not synced</div></div>
     <button class="mbtn" onclick="openMonthPicker()" id="month-lbl">Apr 2026</button>
   </div>
   <div class="content">
@@ -516,9 +516,58 @@ function renderDashboard(){
   var dp=document.getElementById('d-provs');dp.innerHTML='<div class="sl">Savings accounts</div>'+(S.provAccs.length===0?'<div class="empty-state">No savings accounts</div>':S.provAccs.map(function(pa){var pvE=S.entries.filter(function(e){return e.type==='provision'&&e.account===pa.name;});var tin=pvE.reduce(function(s,e){return s+e.amount;},0),paid=pvE.reduce(function(s,e){return s+(e.actualPayment||0);},0),bal=tin-paid;var mp=pa.target>0?Math.min(Math.round(tin/pa.target*100),100):0;return'<div class="pvc"><div class="row"><span style="font-size:13px;font-weight:600">'+pa.name+'</span><span class="bdg bg">'+inr(bal)+'</span></div><div style="font-size:11px;color:var(--t2);margin:4px 0">Target: '+inr(pa.target)+'/mo · In: '+inr(tin)+' · Paid: '+inr(paid)+'</div><div class="pb"><div class="pf pg" style="width:'+mp+'%"></div></div></div>';}).join(''));
   var pendMo=S.entries.filter(function(e){return e.type==='expense'&&!e.reconciled;}).filter(function(e){try{var d=new Date(e.date);return d.getFullYear()===S.curY&&d.getMonth()===S.curM;}catch(ex){return false;}});
   document.getElementById('d-pen-c').textContent=pendMo.length;document.getElementById('d-pen').innerHTML=pendMo.length===0?'<div class="empty-state">All reconciled</div>':pendMo.slice(0,3).map(function(e){return'<div class="li"><div><div style="font-size:13px">'+e.category+'</div><div style="font-size:11px;color:var(--t2)">'+e.date+' · '+e.account+'</div></div><div style="color:var(--d);font-weight:600">'+inr(e.amount)+'</div></div>';}).join('');
-  var cs={};exps.forEach(function(e){cs[e.category]=(cs[e.category]||0)+e.amount;});
+  var cs={};
+  exps.forEach(function(e){cs[e.category]=(cs[e.category]||0)+e.amount;});
   var top=Object.entries(cs).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
-  document.getElementById('d-top').innerHTML=top.length===0?'<div class="empty-state">No expenses for '+MOS[S.curM]+' '+S.curY+'</div>':top.map(function(item,i){var cat=item[0],amt=item[1];var b=bud[cat]||0,p=b>0?Math.min(Math.round(amt/b*100),100):0;return'<div class="li"><div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0"><div style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:'+CLRS[i%CLRS.length]+'"></div><div style="flex:1;min-width:0"><div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</div>'+(b>0?'<div class="pb"><div class="pf '+(p>90?'pr':p>70?'pa':'pg')+'" style="width:'+p+'%"></div></div>':'')+'</div></div><div style="text-align:right;flex-shrink:0;padding-left:8px"><div style="font-weight:600;font-size:13px">'+inr(amt)+'</div>'+(b>0?'<div style="font-size:10px;color:var(--t2)">of '+inr(b)+'</div>':'')+'</div></div>';}).join('');
+  var topEl=document.getElementById('d-top');
+  topEl.innerHTML='';
+  if(top.length===0){
+    topEl.innerHTML='<div class="empty-state">No expenses for '+MOS[S.curM]+' '+S.curY+'</div>';
+  } else {
+    top.forEach(function(item,i){
+      var cat=item[0],amt=item[1];
+      var b=bud[cat]||0,p=b>0?Math.min(Math.round(amt/b*100),100):0;
+      var row=document.createElement('div');
+      row.className='li';
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bdr)';
+      var left=document.createElement('div');
+      left.style.cssText='display:flex;align-items:center;gap:10px;flex:1;min-width:0';
+      var dot=document.createElement('div');
+      dot.style.cssText='width:9px;height:9px;border-radius:50%;flex-shrink:0;background:'+CLRS[i%CLRS.length];
+      var catDiv=document.createElement('div');
+      catDiv.style.cssText='flex:1;min-width:0';
+      var catName=document.createElement('div');
+      catName.style.cssText='font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      catName.textContent=cat;
+      catDiv.appendChild(catName);
+      if(b>0){
+        var pb=document.createElement('div');
+        pb.className='pb';
+        var pf=document.createElement('div');
+        pf.className='pf '+(p>90?'pr':p>70?'pa':'pg');
+        pf.style.width=p+'%';
+        pb.appendChild(pf);
+        catDiv.appendChild(pb);
+      }
+      left.appendChild(dot);
+      left.appendChild(catDiv);
+      var right=document.createElement('div');
+      right.style.cssText='text-align:right;flex-shrink:0;padding-left:8px';
+      var amtDiv=document.createElement('div');
+      amtDiv.style.cssText='font-weight:600;font-size:13px';
+      amtDiv.textContent=inr(amt);
+      right.appendChild(amtDiv);
+      if(b>0){
+        var ofDiv=document.createElement('div');
+        ofDiv.style.cssText='font-size:10px;color:var(--t2)';
+        ofDiv.textContent='of '+inr(b);
+        right.appendChild(ofDiv);
+      }
+      row.appendChild(left);
+      row.appendChild(right);
+      topEl.appendChild(row);
+    });
+  }
 }
 function renderReports(){var gs=['All','Food','Loans','Offerings','Utilities','Others'];document.getElementById('rpt-chips').innerHTML=gs.map(function(g,i){return'<button class="chip'+(i===0?' active':'')+'" onclick="fRpt(''+g+'',this)">'+g+'</button>';}).join('');drawRpt('All');drawTagRpt();}
 function fRpt(g,btn){document.querySelectorAll('#rpt-chips .chip').forEach(function(c){c.classList.remove('active');});btn.classList.add('active');drawRpt(g);}
