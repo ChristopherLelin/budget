@@ -123,7 +123,11 @@ label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px}
       </div>
       <div id="tab-expense" class="card">
         <div class="fg"><label>Date</label><input type="date" id="e-date"></div>
-        <div class="fg"><label>Category</label><select id="e-cat"></select></div>
+        <div class="fg">
+          <label>Category</label>
+          <select id="e-cat" onchange="onCatChange()"></select>
+          <div id="freq-cats" class="tcs" style="margin-top:8px"></div>
+        </div>
         <div class="fg"><label>Amount (&#8377;)</label><input type="number" id="e-amt" placeholder="0" inputmode="decimal"></div>
         <div class="fg"><label>Paid from</label><select id="e-acc"></select></div>
         <div class="fg"><label>Tags</label><div class="tcs" id="e-tag-chips"></div>
@@ -318,6 +322,14 @@ function lsLoad() { try { var d=localStorage.getItem("hbp11"); if(d) Object.assi
 function lsSave() { try { localStorage.setItem("hbp11",JSON.stringify(S)); } catch(e){} }
 function inr(n) { return "\u20b9"+(Math.round(n)||0).toLocaleString("en-IN"); }
 function tday() { return new Date().toISOString().slice(0,10); }
+function fmtDate(s) {
+  if(!s) return "";
+  try {
+    var d = new Date(s);
+    if(isNaN(d)) return s;
+    return d.getDate().toString().padStart(2,"0")+"-"+MOS[d.getMonth()]+"-"+d.getFullYear();
+  } catch(e) { return s; }
+}
 function moy(s) { try { var d=new Date(s); return MOS[d.getMonth()]+"-"+d.getFullYear(); } catch(e){return "";} }
 function mk(y,m) { return y+"-"+(m+1<10?"0":"")+(m+1); }
 
@@ -424,7 +436,7 @@ function processData(data) {
   var cb=document.getElementById("conn-box");
   if(cb){cb.textContent="Connected \u2713";cb.className="sbox";}
   lsSave(); populateAll(); showDash(); renderDashboard(); renderBudList();
-  toast("Synced! "+n+" expenses loaded");
+  toast("Synced! "+n+" expenses loaded");renderFreqCats();
 }
 
 function saveUrlAndSync() {
@@ -446,7 +458,7 @@ function saveExpense() {
   S.entries.push(entry);S.dataMonths=getDataMonths();lsSave();
   setLoad("save-exp-btn",true);
   apiPost({action:"append",sheet:"Actuals",row:[entry.date,entry.category,entry.amount,entry.account,(entry.tags||[]).join(","),entry.notes||"",entry.reconciled?"Yes":"No",moy(entry.date)]},
-    function(){toast("Expense saved!");setLoad("save-exp-btn",false);},
+    function(){toast("Expense saved!");setLoad("save-exp-btn",false);bgSync();},
     function(){toast("Saved locally");setLoad("save-exp-btn",false);}
   );
   document.getElementById("e-amt").value="";document.getElementById("e-notes").value="";
@@ -472,7 +484,7 @@ function saveTransfer() {
   );
   document.getElementById("t-amt").value="";document.getElementById("t-notes").value="";
   document.getElementById("split-rows").innerHTML="";document.getElementById("split-section").style.display="none";
-  nav("dashboard",document.querySelector(".ni"));
+  nav("dashboard",document.querySelector(".ni"));bgSync();
 }
 
 function saveProvision() {
@@ -481,7 +493,7 @@ function saveProvision() {
   var entry={id:Date.now(),type:"provision",date:document.getElementById("p-date").value,account:acc,amount:amt,actualPayment:actual};
   S.entries.push(entry);lsSave();setLoad("save-pv-btn",true);
   apiPost({action:"append",sheet:"Provision_Log",row:[entry.date,entry.account,entry.amount,entry.actualPayment,entry.amount-entry.actualPayment,"",moy(entry.date)]},
-    function(){toast("Provision saved!");setLoad("save-pv-btn",false);},
+    function(){toast("Provision saved!");setLoad("save-pv-btn",false);bgSync();},
     function(){toast("Saved locally");setLoad("save-pv-btn",false);}
   );
   document.getElementById("p-amt").value="";document.getElementById("p-actual").value="";
@@ -494,7 +506,7 @@ function saveBudgets() {
   S.budgetsByMonth[k]=nb;lsSave();
   setLoad("save-bud-btn",true);
   apiPost({action:"batchWrite",sheet:"Budget",rows:CATS.map(function(cat){return[cat,k,nb[cat]||0];})},
-    function(){toast("Budget saved!");setLoad("save-bud-btn",false);renderDashboard();},
+    function(){toast("Budget saved!");setLoad("save-bud-btn",false);renderDashboard();bgSync();},
     function(){toast("Saved locally");setLoad("save-bud-btn",false);}
   );
 }
@@ -575,7 +587,7 @@ function renderDashboard() {
     var li=document.createElement("div");li.className="li";
     var ld=document.createElement("div");
     var cat=document.createElement("div");cat.style.fontSize="13px";cat.textContent=e.category;
-    var sub=document.createElement("div");sub.style.cssText="font-size:11px;color:var(--t2)";sub.textContent=e.date+" \u00b7 "+e.account;
+    var sub=document.createElement("div");sub.style.cssText="font-size:11px;color:var(--t2)";sub.textContent=fmtDate(e.date)+" \u00b7 "+e.account;
     ld.appendChild(cat);ld.appendChild(sub);li.appendChild(ld);
     var amt=document.createElement("div");amt.style.cssText="color:var(--d);font-weight:600";amt.textContent=inr(e.amount);
     li.appendChild(amt);penEl.appendChild(li);
@@ -708,7 +720,7 @@ function renderAccDetail(name) {
     var li=document.createElement("div");li.className="li";
     var ld=document.createElement("div");
     var ct=document.createElement("div");ct.style.cssText="font-size:13px;font-weight:500";ct.textContent=lbl;
-    var sub=document.createElement("div");sub.style.cssText="font-size:11px;color:var(--t2)";sub.textContent=e.date+(e.notes?" \u00b7 "+e.notes:"");
+    var sub=document.createElement("div");sub.style.cssText="font-size:11px;color:var(--t2)";sub.textContent=fmtDate(e.date)+(e.notes?" \u00b7 "+e.notes:"");
     ld.appendChild(ct);ld.appendChild(sub);li.appendChild(ld);
     var av=document.createElement("div");av.style.cssText="font-weight:600;color:"+col+";flex-shrink:0;padding-left:8px";av.textContent=sign+inr(e.amount);
     li.appendChild(av);txEl.appendChild(li);
@@ -730,11 +742,13 @@ function renderHistory() {
     var col=e.type==="expense"?"var(--d)":e.type==="transfer"?"var(--i)":"var(--t)";
     var lbl=e.type==="expense"?e.category:e.type==="transfer"?(e.from+" \u2192 "+e.to):"Provision: "+e.account;
     var li=document.createElement("div");li.className="li";
+    li.style.cursor="pointer";
+    (function(eid){li.addEventListener("click",function(){openEditModal(eid);});})(e.id);
     var lft=document.createElement("div");lft.style.cssText="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0";
     var ic=document.createElement("span");ic.style.cssText="color:"+col+";font-size:18px;line-height:1.3;flex-shrink:0";ic.textContent=icon;
     var ld=document.createElement("div");ld.style.cssText="min-width:0;flex:1";
     var lb=document.createElement("div");lb.style.cssText="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";lb.textContent=lbl;
-    var sb=document.createElement("div");sb.style.cssText="font-size:11px;color:var(--t2)";sb.textContent=e.date+(e.notes?" \u00b7 "+e.notes:"");
+    var sb=document.createElement("div");sb.style.cssText="font-size:11px;color:var(--t2)";sb.textContent=fmtDate(e.date)+(e.notes?" \u00b7 "+e.notes:"");
     ld.appendChild(lb);ld.appendChild(sb);
     if(e.tags&&e.tags.length){var tgs=document.createElement("div");tgs.style.cssText="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px";e.tags.forEach(function(t){var tc=document.createElement("span");tc.className="tc";tc.style.cssText="cursor:default;font-size:10px;padding:2px 7px";tc.textContent=t;tgs.appendChild(tc);});ld.appendChild(tgs);}
     if(e.type==="expense"&&!e.reconciled){var rb=document.createElement("span");rb.className="bdg ba";rb.style.cssText="font-size:10px;display:inline-block;margin-top:2px";rb.textContent="Unreconciled";ld.appendChild(rb);}
@@ -776,7 +790,7 @@ function populateAll(){
   var ao="<option value=\"\">Select...</option>"+clean.map(function(a){return "<option>"+a.name+"</option>";}).join("");
   ["e-acc","t-from","t-to"].forEach(function(id){var el2=document.getElementById(id);if(el2)el2.innerHTML=ao;});
   var paEl=document.getElementById("p-acc");paEl.innerHTML="";var paOpt=document.createElement("option");paOpt.value="";paOpt.textContent="Select...";paEl.appendChild(paOpt);clean.filter(function(a){return a.type==="savings";}).forEach(function(a){var o=document.createElement("option");o.value=a.name;o.textContent=a.name;paEl.appendChild(o);});
-  renderTagChips("e-tag-chips");renderSTags();renderBudList();
+  renderTagChips("e-tag-chips");renderSTags();renderBudList();renderFreqCats();
 }
 
 function nav(sc,btn){if(sc==="accounts"&&S.viewAcc)closeAccDetail();document.querySelectorAll(".screen").forEach(function(s){s.classList.remove("active");});document.querySelectorAll(".ni").forEach(function(b){b.classList.remove("active");});document.getElementById("screen-"+sc).classList.add("active");if(btn)btn.classList.add("active");if(sc==="dashboard")renderDashboard();if(sc==="reports")renderReports();if(sc==="accounts")renderAccounts();if(sc==="history")renderHistory();if(sc==="settings")renderBudList();}
@@ -815,6 +829,117 @@ function loadDemo(){
   S.dataMonths=getDataMonths();lsSave();populateAll();showDash();renderDashboard();toast("Demo loaded!");
 }
 
+
+// ── BACKGROUND SYNC ──────────────────────────────────────────────────────
+// Silent sync - updates data without showing loading state
+function bgSync() {
+  // Small delay to allow sheet write to complete before reading
+  setTimeout(function(){
+    apiGet({action:"all"}, function(data){
+      if(!data||!data.ok) return; // fail silently
+      processData(data);
+      renderFreqCats();
+    }, function(){
+      // fail silently - data was already saved locally
+    });
+  }, 2000);
+}
+
+// ── FREQUENT CATEGORIES ───────────────────────────────────────────────────
+function getFreqCats() {
+  var cs = {};
+  S.entries.filter(function(e){return e.type==="expense";}).forEach(function(e){
+    cs[e.category] = (cs[e.category]||0) + 1;
+  });
+  // Default top cats if no history yet
+  var defaults = ["Grocery","Fuel","Restaurant","Fruits","Snacks","Medical Expenses","Transport","Electricity","Milk","Vegetables"];
+  var sorted = Object.entries(cs).sort(function(a,b){return b[1]-a[1];}).map(function(e){return e[0];});
+  // Merge: history first, then defaults to fill up to 12
+  var result = sorted.slice(0,12);
+  defaults.forEach(function(d){ if(result.indexOf(d)<0 && result.length<12) result.push(d); });
+  return result.slice(0,12);
+}
+
+function renderFreqCats() {
+  var el = document.getElementById("freq-cats");
+  if(!el) return;
+  el.innerHTML = "";
+  var freqs = getFreqCats();
+  var curCat = document.getElementById("e-cat").value;
+  freqs.forEach(function(cat) {
+    var chip = document.createElement("span");
+    chip.className = "tc" + (curCat===cat?" selected":"");
+    chip.textContent = cat;
+    chip.style.cssText = "cursor:pointer;margin-bottom:4px";
+    chip.addEventListener("click", function(){
+      document.getElementById("e-cat").value = cat;
+      renderFreqCats(); // re-render to show selected
+    });
+    el.appendChild(chip);
+  });
+}
+
+function onCatChange() { renderFreqCats(); }
+
+// ── EDIT ENTRY ─────────────────────────────────────────────────────────────
+function openEditModal(entryId) {
+  var entry = S.entries.filter(function(e){return e.id==entryId;})[0];
+  if(!entry) return;
+  document.getElementById("edit-entry-id").value = entryId;
+  document.getElementById("edit-date").value = entry.date||"";
+  document.getElementById("edit-amt").value = entry.amount||"";
+  document.getElementById("edit-notes").value = entry.notes||"";
+  // Populate category select
+  var catSel = document.getElementById("edit-cat");
+  catSel.innerHTML = "";
+  CATS.forEach(function(c){
+    var o = document.createElement("option");
+    o.value = c; o.textContent = c;
+    if(c===entry.category) o.selected = true;
+    catSel.appendChild(o);
+  });
+  // Populate account select
+  var accSel = document.getElementById("edit-acc");
+  accSel.innerHTML = "";
+  S.accounts.forEach(function(a){
+    var o = document.createElement("option");
+    o.value = a.name; o.textContent = a.name;
+    if(a.name===entry.account) o.selected = true;
+    accSel.appendChild(o);
+  });
+  // Tags
+  renderTagChips("edit-tag-chips", entry.tags||[]);
+  document.getElementById("modal-edit").classList.add("open");
+}
+
+function saveEdit() {
+  var id = document.getElementById("edit-entry-id").value;
+  var entry = S.entries.filter(function(e){return e.id==id;})[0];
+  if(!entry) return;
+  entry.date = document.getElementById("edit-date").value;
+  entry.category = document.getElementById("edit-cat").value;
+  entry.amount = parseFloat(document.getElementById("edit-amt").value)||0;
+  entry.account = document.getElementById("edit-acc").value;
+  entry.notes = document.getElementById("edit-notes").value;
+  entry.tags = getSelTags("edit-tag-chips");
+  lsSave();
+  closeModal("modal-edit");
+  renderHistory();
+  renderDashboard();
+  toast("Entry updated locally.");
+}
+
+function deleteEntry() {
+  var id = document.getElementById("edit-entry-id").value;
+  if(!confirm("Delete this entry?")) return;
+  S.entries = S.entries.filter(function(e){return e.id!=id;});
+  lsSave();
+  closeModal("modal-edit");
+  renderHistory();
+  renderDashboard();
+  toast("Deleted locally. Re-sync to reflect in sheet.");
+}
+
 // INIT
 lsLoad();
 if(!localStorage.getItem("hbp11")){S.curY=2026;S.curM=3;}
@@ -825,6 +950,30 @@ document.getElementById("month-lbl").textContent=MOS[S.curM]+" "+S.curY;
 document.getElementById("s-url").value=S.api||API;
 populateAll();
 if(S.entries.length>0){S.dataMonths=getDataMonths();showDash();renderDashboard();setSt("Loaded \u00b7 "+S.entries.length+" entries");}
+// Auto-sync on every launch
+syncAll();
 </script>
+
+<div class="mbg" id="modal-edit">
+  <div class="modal">
+    <div class="mh"></div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:14px">Edit Entry</div>
+    <input type="hidden" id="edit-entry-id">
+    <div class="fg"><label>Date</label><input type="date" id="edit-date"></div>
+    <div class="fg"><label>Category</label><select id="edit-cat"></select></div>
+    <div class="fg"><label>Amount (&#8377;)</label><input type="number" id="edit-amt" inputmode="decimal"></div>
+    <div class="fg"><label>Account</label><select id="edit-acc"></select></div>
+    <div class="fg"><label>Notes</label><input type="text" id="edit-notes" placeholder="Optional..."></div>
+    <div class="fg">
+      <label>Tags</label>
+      <div class="tcs" id="edit-tag-chips"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn bp" onclick="saveEdit()" style="flex:1">Save changes</button>
+      <button class="btn bd" onclick="deleteEntry()" style="flex:1">Delete</button>
+    </div>
+    <button class="btn bs" onclick="closeModal('modal-edit')" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
 </body>
 </html>
