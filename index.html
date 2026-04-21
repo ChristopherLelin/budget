@@ -281,6 +281,10 @@ label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px}
     <div class="fg" id="acc-m-goal-grp" style="display:none"><label>Monthly target (&#8377;)</label><input type="number" id="acc-m-target" placeholder="25000" inputmode="decimal"></div>
     <div class="fg" id="acc-m-cat-grp" style="display:none"><label>Linked category</label><select id="acc-m-cat"></select></div>
     <div class="fg"><label>Notes</label><input type="text" id="acc-m-notes" placeholder="Optional..."></div>
+    <div class="fg" style="display:flex;align-items:center;gap:10px;padding:4px 0">
+      <input type="checkbox" id="acc-m-default" style="width:auto;padding:0;width:18px;height:18px;cursor:pointer;flex-shrink:0">
+      <label for="acc-m-default" style="font-size:13px;color:var(--tx);cursor:pointer;margin:0">Set as default account for expenses</label>
+    </div>
     <button class="btn bp" onclick="saveAccModal()" style="margin-bottom:8px">Save account</button>
     <button class="btn bd" onclick="deleteAccModal()" id="acc-m-del" style="display:none;margin-bottom:8px">Delete account</button>
     <button class="btn bs" onclick="closeModal('modal-acc')">Cancel</button>
@@ -314,6 +318,7 @@ var S = {
   api: "https://budget-proxy.christy-lelin.workers.dev",
   curY:2026, curM:3, pickY:2026,
   histScope:"month", accScope:"month", viewAcc:null,
+  defaultAccount: null,
   entries:[], budgetsByMonth:{}, accounts:[], provAccs:[],
   tags:["BigBasket","Local Shop","DMart","Online","Amazon","Swiggy","Zomato","Pharmacy","Petrol Bunk","Church","School","Blinkit"]
 };
@@ -536,10 +541,11 @@ function updSplit(){var total=parseFloat(document.getElementById("t-amt").value)
 function getSplits(){return Array.from(document.querySelectorAll(".split-row")).map(function(row){return{category:row.querySelector(".split-cat").value,amount:parseFloat(row.querySelector(".split-amt").value)||0};}).filter(function(s){return s.category&&s.amount>0;});}
 
 // ACCOUNT MODAL
-function openAddAccModal(){document.getElementById("acc-modal-title").textContent="Add account";document.getElementById("acc-edit-idx").value="-1";["acc-m-name","acc-m-bal","acc-m-target","acc-m-notes"].forEach(function(id){document.getElementById(id).value="";});document.getElementById("acc-m-type").value="primary";document.getElementById("acc-m-del").style.display="none";onAccTypeChange();document.getElementById("modal-acc").classList.add("open");}
-function openEditAccModal(idx){var a=S.accounts[idx];document.getElementById("acc-modal-title").textContent="Edit account";document.getElementById("acc-edit-idx").value=idx;document.getElementById("acc-m-name").value=a.name;document.getElementById("acc-m-type").value=a.type||"primary";document.getElementById("acc-m-bal").value=a.openingBalance||"";document.getElementById("acc-m-target").value=a.target||"";document.getElementById("acc-m-notes").value=a.notes||"";onAccTypeChange();setTimeout(function(){if(a.linkedCat)document.getElementById("acc-m-cat").value=a.linkedCat;},50);document.getElementById("acc-m-del").style.display="block";document.getElementById("modal-acc").classList.add("open");}
+function openAddAccModal(){document.getElementById("acc-modal-title").textContent="Add account";document.getElementById("acc-edit-idx").value="-1";["acc-m-name","acc-m-bal","acc-m-target","acc-m-notes"].forEach(function(id){document.getElementById(id).value="";});document.getElementById("acc-m-type").value="primary";document.getElementById("acc-m-default").checked=false;document.getElementById("acc-m-del").style.display="none";onAccTypeChange();document.getElementById("modal-acc").classList.add("open");}
+function openEditAccModal(idx){var a=S.accounts[idx];document.getElementById("acc-modal-title").textContent="Edit account";document.getElementById("acc-edit-idx").value=idx;document.getElementById("acc-m-name").value=a.name;document.getElementById("acc-m-type").value=a.type||"primary";document.getElementById("acc-m-bal").value=a.openingBalance||"";document.getElementById("acc-m-target").value=a.target||"";document.getElementById("acc-m-notes").value=a.notes||"";onAccTypeChange();setTimeout(function(){if(a.linkedCat)document.getElementById("acc-m-cat").value=a.linkedCat;},50);document.getElementById("acc-m-default").checked=(S.defaultAccount===a.name);document.getElementById("acc-m-del").style.display="block";document.getElementById("modal-acc").classList.add("open");}
 function onAccTypeChange(){var t=document.getElementById("acc-m-type").value;document.getElementById("acc-m-goal-grp").style.display=(t==="savings"||t==="wallet")?"block":"none";document.getElementById("acc-m-cat-grp").style.display=t==="savings"?"block":"none";}
-function saveAccModal(){var idx=parseInt(document.getElementById("acc-edit-idx").value);var name=document.getElementById("acc-m-name").value.trim();if(!name){toast("Enter account name");return;}var acc={name:name,type:document.getElementById("acc-m-type").value,openingBalance:parseFloat(document.getElementById("acc-m-bal").value)||0,target:parseFloat(document.getElementById("acc-m-target").value)||0,linkedCat:document.getElementById("acc-m-cat").value||"",notes:document.getElementById("acc-m-notes").value||""};if(idx===-1){S.accounts.push(acc);toast("Account added!");}else{var old=S.accounts[idx].name;S.accounts[idx]=acc;if(old!==name)S.entries.forEach(function(e){if(e.account===old)e.account=name;if(e.from===old)e.from=name;if(e.to===old)e.to=name;});toast("Account updated!");}if(acc.type==="savings"&&acc.target>0){var pa=S.provAccs.filter(function(p){return p.name===name;})[0];if(pa){pa.target=acc.target;pa.category=acc.linkedCat;}else S.provAccs.push({name:acc.name,target:acc.target,category:acc.linkedCat});}else S.provAccs=S.provAccs.filter(function(p){return p.name!==name;});lsSave();populateAll();closeModal("modal-acc");renderAccounts();}
+function saveAccModal(){var idx=parseInt(document.getElementById("acc-edit-idx").value);var name=document.getElementById("acc-m-name").value.trim();if(!name){toast("Enter account name");return;}var acc={name:name,type:document.getElementById("acc-m-type").value,openingBalance:parseFloat(document.getElementById("acc-m-bal").value)||0,target:parseFloat(document.getElementById("acc-m-target").value)||0,linkedCat:document.getElementById("acc-m-cat").value||"",notes:document.getElementById("acc-m-notes").value||""};if(idx===-1){S.accounts.push(acc);toast("Account added!");}else{var old=S.accounts[idx].name;S.accounts[idx]=acc;if(old!==name)S.entries.forEach(function(e){if(e.account===old)e.account=name;if(e.from===old)e.from=name;if(e.to===old)e.to=name;});toast("Account updated!");}
+if(document.getElementById("acc-m-default").checked){S.defaultAccount=name;}else if(S.defaultAccount===name){S.defaultAccount=null;}if(acc.type==="savings"&&acc.target>0){var pa=S.provAccs.filter(function(p){return p.name===name;})[0];if(pa){pa.target=acc.target;pa.category=acc.linkedCat;}else S.provAccs.push({name:acc.name,target:acc.target,category:acc.linkedCat});}else S.provAccs=S.provAccs.filter(function(p){return p.name!==name;});lsSave();populateAll();closeModal("modal-acc");renderAccounts();}
 function deleteAccModal(){var idx=parseInt(document.getElementById("acc-edit-idx").value);var a=S.accounts[idx];if(!confirm("Delete "+a.name+"?"))return;S.accounts.splice(idx,1);S.provAccs=S.provAccs.filter(function(p){return p.name!==a.name;});lsSave();populateAll();closeModal("modal-acc");renderAccounts();toast("Deleted!");}
 
 // RENDER - all use DOM manipulation, no string concatenation
@@ -673,6 +679,7 @@ function renderAccounts() {
     var nm=document.createElement("div");nm.style.cssText="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";nm.textContent=a.name;
     var tb=document.createElement("span");tb.className="atb "+(TC[a.type]||"tp");tb.style.marginTop="3px";tb.textContent=TL[a.type]||a.type;
     lft.appendChild(nm);lft.appendChild(tb);
+    if(S.defaultAccount===a.name){var db=document.createElement("span");db.className="atb";db.style.cssText="background:var(--wl);color:var(--wd);margin-left:4px;margin-top:3px";db.textContent="Default";lft.appendChild(db);}
     var rgt=document.createElement("div");rgt.style.cssText="text-align:right;flex-shrink:0;padding-left:8px";
     var bv=document.createElement("div");bv.style.cssText="font-size:18px;font-weight:600;color:"+(isNeg?"var(--d)":"var(--t)");bv.textContent=inr(Math.abs(bal));
     var eb=document.createElement("button");eb.style.cssText="margin-top:4px;border:none;background:var(--gl);color:var(--t2);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit";eb.textContent="Edit";
@@ -789,6 +796,7 @@ function populateAll(){
   var clean=S.accounts.filter(function(a){return!isJunk(a.name);});
   var ao="<option value=\"\">Select...</option>"+clean.map(function(a){return "<option>"+a.name+"</option>";}).join("");
   ["e-acc","t-from","t-to"].forEach(function(id){var el2=document.getElementById(id);if(el2)el2.innerHTML=ao;});
+  if(S.defaultAccount){var eacc=document.getElementById("e-acc");if(eacc)eacc.value=S.defaultAccount;}
   var paEl=document.getElementById("p-acc");paEl.innerHTML="";var paOpt=document.createElement("option");paOpt.value="";paOpt.textContent="Select...";paEl.appendChild(paOpt);clean.filter(function(a){return a.type==="savings";}).forEach(function(a){var o=document.createElement("option");o.value=a.name;o.textContent=a.name;paEl.appendChild(o);});
   renderTagChips("e-tag-chips");renderSTags();renderBudList();renderFreqCats();
 }
